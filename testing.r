@@ -1,2 +1,2 @@
 # this is from Github
-Print ("Hellow from Github")
+print("Hellow from Github")

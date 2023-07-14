@@ -1,0 +1,73 @@
+## To create a loop that logs in with different values on each iteration, you can modify your existing code and wrap the login process in a for loop##
+# this test is for loop in Current Browser #
+
+import openpyxl
+import requests
+import time
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Create a new instance of the Chrome driver
+driver_path = r'C:/chromedriver'
+service = Service(driver_path)
+service.start()
+
+# Launch the Chrome browser
+driver = webdriver.Chrome(service=service)
+
+# Open the login page
+url = 'https://stage-qa-maliyat.dibaadm.com/login'
+Dashboard = 'https://stage-qa-maliyat.dibaadm.com/Dashboard?main_module_id=1'
+driver.get(url)
+
+# For maximizing window
+driver.maximize_window()
+
+# Load the Excel file for username input
+file = 'D:\\username.xlsx'
+usersWorkbook = openpyxl.load_workbook(file)
+usersSheet = usersWorkbook['Sheet1']
+
+# Iterate 20 times with different login values
+for i in range(54):
+    value = usersSheet.cell(row=i+1, column=1).value
+    password = usersSheet.cell(row=i+1, column=2).value
+    
+    # Find the username and password input fields and enter the credentials
+    username_input = driver.find_element('name', 'username')
+    password_input = driver.find_element('name', 'password')
+    
+    # Enter the credentials
+    username_input.clear()
+    username_input.send_keys(value)
+    password_input.clear()
+    password_input.send_keys(password)
+    
+    # Submit the login form
+    password_input.send_keys(Keys.RETURN)
+    
+    # Wait for the page to load (you can use explicit waits here if needed)
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.title_contains('Dashboard'))
+    
+    # Perform assertions or further actions after successful login
+    # For example, check if the login was successful by checking the page title
+    if 'Dashboard' in driver.title:
+        print(f"Login {i+1}: Successfully logged in as {value}")
+    else:
+        print(f"Login {i+1}: Login failed for {value}")
+    
+    # Clear the cookies and cache for the next iteration
+    driver.delete_all_cookies()
+    driver.execute_script('window.localStorage.clear();')
+    
+    # Go back to the login page for the next iteration
+    driver.get(url)
+    driver.get_screenshot_as_png(Dashboard)
+
+# Quit the driver and close the browser
+driver.quit()

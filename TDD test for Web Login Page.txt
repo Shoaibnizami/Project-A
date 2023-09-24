@@ -20,8 +20,8 @@ service.start()
 driver = webdriver.Chrome(service=service)
 
 # Open the login page
-url = 'https://stage-qa-maliyat.dibaadm.com/login'
-Dashboard = 'https://stage-qa-maliyat.dibaadm.com/Dashboard?main_module_id=1'
+url = '/login'
+Dashboard = '/Dashboard'
 driver.get(url)
 
 # For maximizing window

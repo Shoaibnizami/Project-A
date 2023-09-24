@@ -1,1 +1,115 @@
-some text
+''' 
+Response Time: This is the time taken for the system to respond to a user's request. It includes the time from when the request is sent until the response is received. Response time is a critical metric as it directly impacts user experience.
+
+Latency: Latency is the delay between a request being initiated and a response starting to be received. It measures the time taken for a single piece of data to travel from the source to the destination.
+
+Throughput: Throughput measures the number of transactions or requests that a system can handle in a given time period. It indicates the system's capacity to process requests effectively.
+
+Transaction Time: In addition to response time, transaction time considers the time taken for all related activities to complete for a specific transaction, including multiple requests and interactions with different components.
+
+Peak Response Time: This is the maximum response time observed during a load test. It helps identify performance bottlenecks and the point at which the system starts degrading under heavy load.
+
+P95, P99, P99.9 Response Times: These are percentiles that represent the response time experienced by a certain percentage of users. For instance, P95 represents the response time experienced by 95% of users. P99 and P99.9 represent higher percentiles.
+
+Start Time and Ramp-up Time: Start time is the time it takes for the system to start responding to requests after the load test begins. Ramp-up time is the time taken to gradually increase the load to the desired level.
+
+Steady-State Time: This is the duration during which the system remains stable under load. It's important to observe performance metrics during this phase to get accurate insights.
+
+Peak Load Time: The time period when the system experiences the highest load. Observing performance during this time helps assess the system's behavior under extreme conditions.
+
+Error Response Time: The time taken for the system to respond when errors occur, such as timeouts or server errors. Quick error responses are crucial for maintaining user trust.
+
+Think Time: In scenarios with real users, think time represents the time users spend reading, thinking, and interacting with the application between requests.
+
+'''
+
+''' 
+wait_time = between(3, 6):
+
+3 is the minimum wait time in seconds.
+6 is the maximum wait time in seconds.
+For every user task execution, the actual wait time between tasks will be randomly chosen between 3 and 6 seconds. This randomization of wait times helps simulate a more realistic user load, where not all users are performing actions at exactly the same time.
+
+For example, if the wait time is set between 3 and 6 seconds, a user might wait 4 seconds after completing one task before moving on to the next. On the next iteration, they might wait 5 seconds, and so on. 
+This variability in wait times helps model a more natural distribution of user behavior during a load test.
+
+'''
+
+
+import requests
+import time
+import datetime
+import openpyxl
+import concurrent.futures
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile  # Add this import
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import json
+import re
+from locust import HttpUser, task, between, events
+
+
+class LoadTestUser(HttpUser):
+    wait_time = between(3, 6)
+
+    @task
+    def login_and_capture(self):
+        start_time = time.time()  # Measure start time
+
+        url = "/login" #Give your Actual URL to login
+        ERP_dashboard = '/Dashboard' #Give your actual path
+        logout_link = '/logout' #Give your actual path
+
+        with open('userpass_selectors.json', 'r') as config_file:
+            selectors = json.load(config_file)
+
+        excel_file_path = 'D:\\username.xlsx'
+        usersWorkbook = openpyxl.load_workbook(excel_file_path)
+        usersSheet = usersWorkbook['Sheet1']
+
+        for i in range(2, usersSheet.max_row + 1):
+            username = usersSheet.cell(row=i, column=1).value
+            password = usersSheet.cell(row=i, column=2).value
+
+            # Send initial GET request
+            self.client.get(url)
+
+            # Send POST request with login credentials
+            response = self.client.post(
+                url,
+                data={
+                    selectors["username_input"]: username,
+                    selectors["password_input"]: password,
+                }
+            )
+
+            self.client.get(ERP_dashboard)
+            erp_request_start_time = time.time()  # Measure ERP dashboard request start time
+            response = self.client.get(ERP_dashboard)
+            erp_request_end_time = time.time()  # Measure ERP dashboard request end time
+
+            match = re.search(r'var segment1\s*=\s*"([^"]+)"', response.text)
+
+            # Inside your login_and_capture method
+            if match and match.group(1) == "Dashboard":
+                events.request_success.fire(
+                    request_type="login",
+                    name="login_and_capture",
+                    response_time=response.elapsed.total_seconds(),
+                    response_length=len(response.content)
+                )
+                print(f"User: {username} is successfully logged in")
+                print("Cookies:", response_cookies)
+                print("Login Time:", login_end_time - login_start_time)
+                print("ERP Dashboard Request Time:", erp_request_end_time - erp_request_start_time)
+                print("=" * 80)
+            else:
+                print(f"User: {username} failed to log in")
+                print("=" * 80)
+
+
+        end_time = time.time()  # Measure end time
+        print("Total Test Duration:", end_time - start_time)
